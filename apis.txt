@@ -1,0 +1,7 @@
+#abuseipdb KEY
+#fraud-guard KEY
+#google-safe-browse KEY
+#polyswarm KEY
+#prompt-whois KEY
+#urlscan KEY
+#virustotal KEY

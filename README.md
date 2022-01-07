@@ -36,7 +36,7 @@ Find the latest release from the main page or the Releases page, then download a
 
 ### Step 2 (optional): Create a virtual environment using venv.
 
-Using a virtual environment will allow you to create a copy of your desired python binary and allow you to install packages that will be isolated from your main python installation. While this is not strictly necessary, it promotes project organization and package compatibility, and doesn't take long to configure.
+Using a virtual environment will allow you to create a copy of your desired python binary and allow you to install packages that will be isolated from your main python installation. While this is not strictly necessary, it promotes project organization and dependency management, and doesn't take long to configure.
 
 Once the source files are extracted to the directory you want them in, open a terminal and move to that directory, then enter the following:
 

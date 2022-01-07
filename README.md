@@ -5,7 +5,7 @@
 Created by Daniel Casey
 
 ---
-### Current Version: *0.5*
+### Current Version: *v0.5.1*
 ### Features
  - Loads API keys from *.apis* file in working directory
  - Scans URLs or IPs (Email Address scanning functionality not yet implemented)

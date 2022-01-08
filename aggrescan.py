@@ -217,7 +217,10 @@ def threat_miner_url(url):
     if 'is_subdomain' in r and r['is_subdomain']:
         if 'root_domain' in r: print(f"[{c.CYAN}#{c.RES}]\tRoot Domain:\t\t{c.CYAN}{r['root_domain']}.{c.RES}")
     if w:
-        if 'creation_date' in w: print(f"[{c.CYAN}#{c.RES}]\tDomain Creation Date:\t{c.CYAN}{w['creation_date']}.{c.RES}")
+        if 'creation_date' in w:
+            # parse date, sometimes it's given in seconds instead of a normal date
+            c_date = time.strftime("%a, %d %b %Y", time.gmtime(w['creation_date']['sec'])) if 'sec' in w['creation_date'] else w['creation_date']
+            print(f"[{c.CYAN}#{c.RES}]\tDomain Creation Date:\t{c.CYAN}{c_date}.{c.RES}")
         if 'registrar' in w: print(f"[{c.CYAN}#{c.RES}]\tRegistrar:\t\t{c.CYAN}{w['registrar']}{c.RES}")
     if i:
         if 'Country' in i: print(f"[{c.CYAN}#{c.RES}]\tRegistrant Country:\t{c.CYAN}{i['Country']}{c.RES}")

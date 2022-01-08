@@ -187,11 +187,11 @@ def virus_total(url):
     u = stats['undetected']
     t = stats['timeout']
     total = h+m+s+u+t
-    print(f'[{c.GREEN}#{c.RES}]\t{c.GREEN}{h}{c.RES}/{total}\t\t{c.GREEN}harmless{c.RES}')
-    print(f'[{c.CYAN}#{c.RES}]\t{c.CYAN}{u}{c.RES}/{total}\t\t{c.CYAN}undetected{c.RES}')
-    print(f'[{c.GRAY}#{c.RES}]\t{c.GRAY}{t}{c.RES}/{total}\t\t{c.GRAY}timeout{c.RES}')
-    print(f'[{c.YELLOW}#{c.RES}]\t{c.YELLOW}{s}{c.RES}/{total}\t\t{c.YELLOW}suspicious{c.RES}')
-    print(f'[{c.RED}#{c.RES}]\t{c.RED}{m}{c.RES}/{total}\t\t{c.RED}malicious{c.RES}')
+    print(f'[{c.GREEN}#{c.RES}]\t{c.GREEN}{h}{c.RES}/{total}\t\t\t{c.GREEN}harmless{c.RES}')
+    print(f'[{c.CYAN}#{c.RES}]\t{c.CYAN}{u}{c.RES}/{total}\t\t\t{c.CYAN}undetected{c.RES}')
+    print(f'[{c.GRAY}#{c.RES}]\t{c.GRAY}{t}{c.RES}/{total}\t\t\t{c.GRAY}timeout{c.RES}')
+    print(f'[{c.YELLOW}#{c.RES}]\t{c.YELLOW}{s}{c.RES}/{total}\t\t\t{c.YELLOW}suspicious{c.RES}')
+    print(f'[{c.RED}#{c.RES}]\t{c.RED}{m}{c.RES}/{total}\t\t\t{c.RED}malicious{c.RES}')
 
 def threat_miner_url(url):
     print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Threat Miner (URL){c.RES}')

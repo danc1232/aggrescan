@@ -367,8 +367,8 @@ def abuseipdb(ip):
         print(f"[{c.YELLOW}>>{c.RES}]\tMost Recent Report:")
         # these comments can be messy
         # print(f"[{c.CYAN}#{c.RES}]\tComment:\t\t\t{c.CYAN}{last_report['comment']}.{c.RES}")
-        print(f"[{c.CYAN}#{c.RES}]\tReport Date:\t\t\t{c.CYAN}{report_date}{c.RES}")
-        print(f"[{c.CYAN}#{c.RES}]\tCategories:\t\t\t{c.CYAN}{categoryList}{c.RES}")
+        print(f"[{c.CYAN}#{c.RES}]\tReport Date:\t\t{c.CYAN}{report_date}{c.RES}")
+        print(f"[{c.CYAN}#{c.RES}]\tCategories:\t\t{c.CYAN}{categoryList}{c.RES}")
 
 def google_safe_browse(url):
     if not API_KEYS['google-safe-browse']: return False

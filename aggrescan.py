@@ -193,10 +193,13 @@ def virus_total(url):
     print(f'[{c.YELLOW}#{c.RES}]\t{c.YELLOW}{s}{c.RES}/{total}\t\t\t{c.YELLOW}suspicious{c.RES}')
     print(f'[{c.RED}#{c.RES}]\t{c.RED}{m}{c.RES}/{total}\t\t\t{c.RED}malicious{c.RES}')
 
-def threat_miner_url(url):
-    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Threat Miner (URL){c.RES}')
-    ## todo: if scanning subdomain, re-scan for root domain info before displaying results
+def threat_miner_url(url,isRetry):
     url = strip_canon(url).split('/')[0]
+    if isRetry:
+        print(f'[{c.GRAY}###{c.RES}]\t{c.GRAY}Retrying root domain:{c.RES}\t{c.CYAN}{url}{c.RES}')
+    else:
+        print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Threat Miner (URL){c.RES}: scanning {c.CYAN}{url}{c.RES}')
+    ## todo: if scanning subdomain, re-scan for root domain info before displaying results
     addr = f"https://api.threatminer.org/v2/domain.php?q={url}"
     headers = { "Accept": "application/json" }
     response = requests.get(addr, headers=headers)
@@ -204,7 +207,11 @@ def threat_miner_url(url):
     status = int(r['status_code'])
     if status != 200:
         if status == 404:
-            print(f'[{c.YELLOW}#{c.RES}]\tThreat Miner could not find registration info.')
+            if not isRetry:
+                print(f'[{c.YELLOW}#{c.RES}]\tThreat Miner could not find registration info.')
+                threat_miner_url(get_domain(url),True)
+            else:
+                print(f'[{c.YELLOW}#{c.RES}]\tRegistration info still not found.')
         else:
             print(f'[{c.RED}#{c.RES}]\tThreat Miner scan {c.RED}failed{c.RES}')
         return False
@@ -469,8 +476,7 @@ def load_api_keys():
             time.sleep(0.2)
             none_found = False
     if none_found:
-        print(f"[{c.RED}#{c.RES}]\tno API keys loaded. Exiting.")
-        exit(1)
+        print(f"[{c.RED}#{c.RES}]\tNo API keys loaded. Functionality will be limited.")
     time.sleep(2)
 
 # parse command line arguments
@@ -566,7 +572,7 @@ def main():
                         pass
                     else:
                         if u: ip = u['page']['ip']
-                    threat_miner_url(url)
+                    threat_miner_url(url,False)
                     prompt_whois(url)
                     google_safe_browse(url)
                     polyswarm(url)

@@ -106,7 +106,6 @@ def fraud_guard(ip):
     if 'country' in r: print(f"[{c.CYAN}#{c.RES}]\tCountry:\t\t{c.CYAN}{r['country']}{c.RES}")
     if 'threat' in r: print(f"[{c.CYAN}#{c.RES}]\tThreat:\t\t\t{c.CYAN}{r['threat']}{c.RES}")
     if 'risk_level' in r: print(f"[{c.CYAN}#{c.RES}]\tRisk Level:\t\t{c.CYAN}{r['risk_level']}{c.RES}")
-
     return r
 
 def polyswarm(url):
@@ -359,7 +358,8 @@ def abuseipdb(ip):
 
 def google_safe_browse(url):
     if not API_KEYS['google-safe-browse']: return False
-    # doesn't flag malicious sites that it's own sister utility (the manual submission safe-browse checker tool) flags
+    # doesn't flag malicious sites that it's own sister utility (the manual submission transparency report utility) flags
+    # according to the issue trackers / bug reports I've read (some beginning in 2015...) not a lot of progress will be made on that front
     # not perfect but sometimes it works!
     url = canonicalize(strip_canon(url).split('/')[0],True)
     print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Google SB{c.RES} scanning:\t{c.CYAN}{url}{c.RES}')
@@ -391,8 +391,6 @@ def google_safe_browse(url):
         print(f"[{c.CYAN}#{c.RES}]\tNo hits")
 
     return True
-
-# Manual (hacky) requests to non-API services
 
 # Utilities
 

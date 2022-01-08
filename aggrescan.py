@@ -3,7 +3,7 @@
 
 
 # API Aggregation script to scan URLs, IPs, and email addresses for malicious indicators
-# v0.6
+# v0.6.1
 
 # standard packages
 import json
@@ -187,11 +187,11 @@ def virus_total(url):
     u = stats['undetected']
     t = stats['timeout']
     total = h+m+s+u+t
-    print(f'[{c.GREEN}#{c.RES}]\t{h}/{total} {c.GREEN}harmless{c.RES}')
-    print(f'[{c.CYAN}#{c.RES}]\t{u}/{total} {c.CYAN}undetected{c.RES}')
-    print(f'[{c.GRAY}#{c.RES}]\t{t}/{total} {c.GRAY}timeout{c.RES}')
-    print(f'[{c.YELLOW}#{c.RES}]\t{s}/{total} {c.YELLOW}suspicious{c.RES}')
-    print(f'[{c.RED}#{c.RES}]\t{m}/{total} {c.RED}malicious{c.RES}')
+    print(f'[{c.GREEN}#{c.RES}]\t{c.GREEN}{h}{c.RES}/{total}\t\t{c.GREEN}harmless{c.RES}')
+    print(f'[{c.CYAN}#{c.RES}]\t{c.CYAN}{u}{c.RES}/{total}\t\t{c.CYAN}undetected{c.RES}')
+    print(f'[{c.GRAY}#{c.RES}]\t{c.GRAY}{t}{c.RES}/{total}\t\t{c.GRAY}timeout{c.RES}')
+    print(f'[{c.YELLOW}#{c.RES}]\t{c.YELLOW}{s}{c.RES}/{total}\t\t{c.YELLOW}suspicious{c.RES}')
+    print(f'[{c.RED}#{c.RES}]\t{c.RED}{m}{c.RES}/{total}\t\t{c.RED}malicious{c.RES}')
 
 def threat_miner_url(url):
     print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Threat Miner (URL){c.RES}')
@@ -245,6 +245,7 @@ def threat_miner_ip(ip):
 
 def prompt_whois(url):
     # seems like this can only scan root domains, so convert any urls to that first
+    if not API_KEYS['prompt-whois']: return False
     print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Promptapi WHOIS{c.RES}')
     url = get_domain(url)
     addr = f"https://api.promptapi.com/whois/query?domain={url}"
@@ -268,6 +269,7 @@ def prompt_whois(url):
     if 'org' in r: print(f"[{c.CYAN}#{c.RES}]\tRegistrant Org:\t\t{c.CYAN}{r['org']}{c.RES}")
 
 def abuseipdb(ip):
+    if not API_KEYS['abuseipdb']: return False
     print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}AbuseIPDB{c.RES}')
     cats = {
         1: "DNS Compromise",
@@ -359,6 +361,7 @@ def abuseipdb(ip):
         print(f"[{c.CYAN}#{c.RES}]\tCategories:\t\t\t{c.CYAN}{categoryList}{c.RES}")
 
 def google_safe_browse(url):
+    if not API_KEYS['google-safe-browse']: return False
     # doesn't flag malicious sites that it's own sister utility (the manual submission safe-browse checker tool) flags
     # not perfect but sometimes it works!
     print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Google Safe Browsing{c.RES}')
@@ -389,6 +392,8 @@ def google_safe_browse(url):
         print(f"[{c.CYAN}#{c.RES}]\tNo hits")
 
     return True
+
+# Manual (hacky) requests to non-API services
 
 # Utilities
 
@@ -468,7 +473,7 @@ def load_api_keys():
 # parse command line arguments
 def parse_args():
     # Parse command line arguments
-    desc = f'{c.BLUE}Aggrescan.py{c.RES} - Daniel Casey\nVersion {c.CYAN}0.5{c.RES}\n{c.GRAY}Scan URLS / IPs / Email addresses for malicious indicators{c.RES}\n'
+    desc = f'{c.BLUE}Aggrescan.py{c.RES} - Daniel Casey\nVersion {c.CYAN}0.6.1{c.RES}\n{c.GRAY}Scan URLS / IPs / Email addresses for malicious indicators{c.RES}\n'
 
     parser = argparse.ArgumentParser(description=desc,allow_abbrev=False,formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('target', type=str, help="The URL/IP to scan")
@@ -551,7 +556,6 @@ def main():
                     print(f'Aggrescan report for URL: {c.BLUE}{url}{c.RES}')
                     ip = resolve_host(url)
                     u = urlscan(url)
-
                     # try to resolve IP with socket, if that doesn't work and URL scan configured, use that
                     # otherwise, don't run IP scans
                     if ip:

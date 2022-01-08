@@ -1,21 +1,9 @@
 # AGGRESCAN.PY - Daniel Casey
-# Scan URLs / IPs / Email Addresses for malicious indicators
+# https://github.com/danc1232/aggrescan
 
-# v0.5
-# Currently scans URLs or IPs (Email Address scanning functionality not yet implemented)
-# Detects type of scan (URL / IP) automatically
 
-# Integrated APIs
-### urlscan.io          = query url or email address | https://urlscan.io/docs/api/
-### googlesafebrowse    = checks URL against google safebrowsing lists | 
-### fraudguard.io       = IP scan, 1000 checks / month | https://docs.fraudguard.io/
-### polyswarm.network   = 250 daily IP / hostname checks | https://docs.polyswarm.io/consumers
-### virustotal.com      = robust URL scan | https://developers.virustotal.com/reference/overview
-### threatminer.org     = WHOIS info with free api | https://www.threatminer.org/api.php
-### promptapi - whois   = WHOIS api with 100 daily lookups | https://promptapi.com/marketplace/description/whois-api#documentation-tab
-### abuseipdb.com       = IP Scan, 1000 checks / day | https://docs.abuseipdb.com/#introduction
-
-# Useful list of other tools / APIs: https://zeltser.com/lookup-malicious-websites/
+# API Aggregation script to scan URLs, IPs, and email addresses for malicious indicators
+# v0.6
 
 # standard packages
 import json
@@ -33,25 +21,14 @@ import requests.exceptions
 from polyswarm_api.api import PolyswarmAPI
 from colorama import Fore, Style
 
-# API requests
+# API request wrappers / output generation
 
 def urlscan(url):
-    print(f'[{c.MAG}###{c.RES}]\t{c.MAG}Urlscan.io{c.RES}')
-    # these are straight out of docs
+    if not API_KEYS['urlscan']: return False
+    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Urlscan.io{c.RES}')
     headers = {'API-Key':API_KEYS["urlscan"],'Content-Type':'application/json'}
     data = {"url": url, "visibility": "unlisted"}
     response = requests.post('https://urlscan.io/api/v1/scan',headers=headers, data=json.dumps(data))
-    # successful response will include dict with values:
-    #   'message': 'Submission successful',
-    #   'uuid': UUID,
-    #   'result': link/to/result,
-    #   'api': link/to/api/result,
-    #   etc..
-    #   the result can be queried further with the result with uuid
-    #   new response object ->
-    #   response = requests.post('https://urlscan.io/api/v1/result/$UUID)
-    #   this response will return a 404 until the scan is finished, at which point it will return a 200
-    #   with a new result JSON object
     resp = response.json()
     if resp['message'] == 'Submission successful':
         UUID = resp['uuid']
@@ -59,7 +36,7 @@ def urlscan(url):
         print(f"[{c.RED}#{c.RES}]\turlscan submission failed.")
         return False
 
-    #   note, wait 10 seconds before polling result, then try every 2 seconds with an upper limit of requests
+    #   note, wait 10 seconds before polling result, then try every 2 seconds (minimum) with an upper limit of requests
     time.sleep(10)
     finished = False
     TIMEOUT_LIMIT = 5
@@ -77,47 +54,68 @@ def urlscan(url):
             finished = True
 
     res = result.json()
-    verdict = res['verdicts']['urlscan']['score']
-    pref = f""
+    t = res['task']
+    p = res['page']
+    l = res['lists']
+    v = res['verdicts']
+
+    verdict = v['overall']['score']
+
     if verdict == 0:
-        pref = f"{c.GREEN}"
+        verdict_color = c.GREEN
     elif verdict <= 50:
-        pref = f"{c.YELLOW}"
+        verdict_color = c.YELLOW
     else:
-        pref = f"{c.RED}"
-    score = pref + f"{str(verdict)}{c.RES}"
+        verdict_color = c.RED
+    score = f"{verdict_color}{str(verdict)}{c.RES}"
 
-    print(f"[{c.GREEN}#{c.RES}]\tURL Scanned: {c.CYAN}{res['task']['url']}{c.RES}")
-    print(f"[{c.GREEN}#{c.RES}]\tResolved Hostname: {c.CYAN}{res['page']['domain']}{c.RES}")
-    print(f"[{c.GREEN}#{c.RES}]\tPrimary Request IP: {c.CYAN}{res['page']['ip']}{c.RES}")
-    print(f"[{c.GREEN}#{c.RES}]\tCountry Code: {c.CYAN}{res['page']['country']}{c.RES}")
-    print(f"[{c.GREEN}#{c.RES}]\tScreenshot: {c.CYAN}https://urlscan.io/screenshots/{UUID}.png{c.RES}")
-    print(f"[{c.GREEN}#{c.RES}]\tThreat Category: {c.CYAN}{res['verdicts']['urlscan']['categories']}{c.RES}")
-    print(f"[{c.GREEN}#{c.RES}]\tURLScan Verdict: {score}")
+    if 'url' in t: print(f"[{c.CYAN}#{c.RES}]\tURL Scanned:\t\t{c.CYAN}{t['url']}{c.RES}")
+    if 'url' in p: print(f"[{c.CYAN}#{c.RES}]\tEffective URL:\t\t{c.CYAN}{p['url']}{c.RES}")
+    if 'domain' in p: print(f"[{c.CYAN}#{c.RES}]\tResolved Hostname:\t{c.CYAN}{p['domain']}{c.RES}")
+    if 'ip' in p: print(f"[{c.CYAN}#{c.RES}]\tPrimary Request IP:\t{c.CYAN}{p['ip']}{c.RES}")
+    if 'country' in p: print(f"[{c.CYAN}#{c.RES}]\tCountry Code:\t\t{c.CYAN}{p['country']}{c.RES}")
+    if 'city' in p and p['city']: print(f"[{c.CYAN}#{c.RES}]\tCity:\t\t\t{c.CYAN}{p['city']}{c.RES}")
+    if 'server' in p: print(f"[{c.CYAN}#{c.RES}]\tServer:\t\t\t{c.CYAN}{p['server']}{c.RES}")
+    if 'certificates' in l: cert = l['certificates'][0] if l['certificates'] else False
+    if cert:
+        ## parse validity timestamps
+        issue_date = time.strftime("%a, %d %b %Y", time.gmtime(cert['validFrom'])) if 'validFrom' in cert else False
+        valid_until = time.strftime("%a, %d %b %Y", time.gmtime(cert['validTo'])) if 'validTo' in cert else False
 
+        if 'subjectName' in cert: print(f"[{c.CYAN}#{c.RES}]\tCert Subject Name:\t{c.CYAN}{cert['subjectName']}{c.RES}")
+        if 'issuer' in cert: print(f"[{c.CYAN}#{c.RES}]\tCert Issuer:\t\t{c.CYAN}{cert['issuer']}{c.RES}")
+        if issue_date: print(f"[{c.CYAN}#{c.RES}]\tIssue Date:\t\t{c.CYAN}{issue_date}{c.RES}")
+        if valid_until: print(f"[{c.CYAN}#{c.RES}]\tValid Unitl:\t\t{c.CYAN}{valid_until}{c.RES}")
+    else:
+        print(f"[{c.YELLOW}#{c.RES}]\tNo TLS Certificate found.{c.RES}")
+    print(f"[{c.CYAN}#{c.RES}]\tScreenshot:\t\t{c.CYAN}https://urlscan.io/screenshots/{UUID}.png{c.RES}")
+    print(f"[{c.CYAN}#{c.RES}]\tThreat Category:\t{c.CYAN}{v['urlscan']['categories']}{c.RES}")
+    print(f"[{verdict_color}#{c.RES}]\tVerdict:\t\t{score}")
     return res
 
     #   also screenshot can be found at https://urlscan.io/screenshots/$uuid.png
     #   things to pull from result
 
 def fraud_guard(ip):
-    print(f'[{c.MAG}###{c.RES}]\t{c.MAG}Fraudguard.io{c.RES}')
-    print(f'[{c.CYAN}#{c.RES}]\tScanning IP: {c.CYAN}{ip}{c.RES}')
+    if not API_KEYS['fraud-guard']: return False
+    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Fraudguard.io{c.RES}')
+    print(f'[{c.CYAN}#{c.RES}]\tScanning IP:\t\t{c.CYAN}{ip}{c.RES}')
     addr = f'https://api.fraudguard.io/ip/{ip}'
     creds = API_KEYS['fraud-guard'].split('|')
     resp = requests.get(addr, verify=True, auth=HTTPBasicAuth(creds[0],creds[1]))
     r = resp.json()
-    print(f"[{c.GREEN}#{c.RES}]\tCountry: {c.CYAN}{r['country']}{c.RES}")
-    print(f"[{c.GREEN}#{c.RES}]\tThreat: {c.CYAN}{r['threat']}{c.RES}")
-    print(f"[{c.GREEN}#{c.RES}]\tRisk Level: {c.CYAN}{r['risk_level']}{c.RES}")
-    
+    print(f"[{c.CYAN}#{c.RES}]\tCountry:\t\t{c.CYAN}{r['country']}{c.RES}")
+    print(f"[{c.CYAN}#{c.RES}]\tThreat:\t\t\t{c.CYAN}{r['threat']}{c.RES}")
+    print(f"[{c.CYAN}#{c.RES}]\tRisk Level:\t\t{c.CYAN}{r['risk_level']}{c.RES}")
+
     return r
 
 def polyswarm(url):
-    print(f'[{c.MAG}###{c.RES}]\t{c.MAG}Polyswarm{c.RES}')
+    if not API_KEYS['polyswarm']: return False
+    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Polyswarm{c.RES}')
     api_key = API_KEYS['polyswarm']
     api = PolyswarmAPI(key=api_key)
-    
+
     positives = 0
     total = 0
     instance = api.submit(url, artifact_type='url')
@@ -144,18 +142,19 @@ def polyswarm(url):
         total += 1
     perc = positives / total
     if perc == 0:
-        indicator = f'{c.GREEN}'
+        hits_color = c.GREEN
     elif perc <= 0.5:
-        indicator = f'{c.YELLOW}'
+        hits_color = c.YELLOW
     else:
-        indicator = f'{c.RED}'
+        hits_color = c.RED
 
-    print(f'[{indicator}#{c.RES}]\t{indicator}{positives}/{total} hits.{c.RES}')
-    
+    print(f'[{hits_color}#{c.RES}]\t{hits_color}{positives}/{total} hits.{c.RES}')
+
     return result
 
 def virus_total(url):
-    print(f'[{c.MAG}###{c.RES}]\t{c.MAG}Virus Total{c.RES}')
+    if not API_KEYS['virustotal']: return False
+    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Virus Total{c.RES}')
     addr = 'https://www.virustotal.com/api/v3/urls'
     payload = {"url": url}
     headers = { "Accept": "application/json","x-apikey": API_KEYS['virustotal'],"Content-Type": "application/x-www-form-urlencoded" }
@@ -166,7 +165,7 @@ def virus_total(url):
     else:
         print(f'[{c.RED}#{c.RES}]\tVirus Total scan{c.RED}failed{c.RES}')
         return False
-    
+
     addr = f'https://www.virustotal.com/api/v3/analyses/{ID}'
     headers = { "Accept": "application/json", "x-apikey": API_KEYS['virustotal'] }
     TIMEOUTS = 4
@@ -187,7 +186,7 @@ def virus_total(url):
     s = stats['suspicious']
     u = stats['undetected']
     t = stats['timeout']
-    total = h+m+s+u+t 
+    total = h+m+s+u+t
     print(f'[{c.GREEN}#{c.RES}]\t{h}/{total} {c.GREEN}harmless{c.RES}')
     print(f'[{c.CYAN}#{c.RES}]\t{u}/{total} {c.CYAN}undetected{c.RES}')
     print(f'[{c.GRAY}#{c.RES}]\t{t}/{total} {c.GRAY}timeout{c.RES}')
@@ -195,9 +194,9 @@ def virus_total(url):
     print(f'[{c.RED}#{c.RES}]\t{m}/{total} {c.RED}malicious{c.RES}')
 
 def threat_miner_url(url):
-    print(f'[{c.MAG}###{c.RES}]\t{c.MAG}Threat Miner (URL){c.RES}')
+    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Threat Miner (URL){c.RES}')
     ## todo: if scanning subdomain, re-scan for root domain info before displaying results
-    url = strip_canon(url)
+    url = strip_canon(url).split('/')[0]
     addr = f"https://api.threatminer.org/v2/domain.php?q={url}"
     headers = { "Accept": "application/json" }
     response = requests.get(addr, headers=headers)
@@ -209,29 +208,24 @@ def threat_miner_url(url):
         else:
             print(f'[{c.RED}#{c.RES}]\tThreat Miner scan {c.RED}failed{c.RES}')
         return False
-    r = r['results'][0]
-    if 'whois' in r:
-        w = r['whois']
-    else:
-        w = False
-    if 'registrant_info' in w:
-        i = w['registrant_info']
-    else:
-        i = False
 
-    print(f"[{c.CYAN}#{c.RES}]\tDomain:\t\t\t {c.CYAN}{r['domain']}.{c.RES}")
-    if 'is_subdomain' in r:
-        if 'root_domain' in r: print(f"[{c.CYAN}#{c.RES}]\tRoot Domain:\t\t {c.CYAN}{r['root_domain']}.{c.RES}")
+    r = r['results'][0]
+    w = r['whois'] if ('whois' in r) else {}
+    i = w['registrant_info'] if ('registrant_info' in w) else {}
+
+    print(f"[{c.CYAN}#{c.RES}]\tDomain:\t\t\t{c.CYAN}{r['domain']}.{c.RES}")
+    if 'is_subdomain' in r and r['is_subdomain']:
+        if 'root_domain' in r: print(f"[{c.CYAN}#{c.RES}]\tRoot Domain:\t\t{c.CYAN}{r['root_domain']}.{c.RES}")
     if w:
-        if 'creation_date' in w: print(f"[{c.CYAN}#{c.RES}]\tDomain Creation Date:\t {c.CYAN}{w['creation_date']}.{c.RES}")
-        if 'registrar' in w: print(f"[{c.CYAN}#{c.RES}]\tRegistrar:\t\t {c.CYAN}{w['registrar']}{c.RES}")
-    if i: 
+        if 'creation_date' in w: print(f"[{c.CYAN}#{c.RES}]\tDomain Creation Date:\t{c.CYAN}{w['creation_date']}.{c.RES}")
+        if 'registrar' in w: print(f"[{c.CYAN}#{c.RES}]\tRegistrar:\t\t{c.CYAN}{w['registrar']}{c.RES}")
+    if i:
         if 'Country' in i: print(f"[{c.CYAN}#{c.RES}]\tRegistrant Country:\t{c.CYAN}{i['Country']}{c.RES}")
         if 'Organization' in i: print(f"[{c.CYAN}#{c.RES}]\tRegistrant Org:\t\t{c.CYAN}{i['Organization']}{c.RES}")
 
 def threat_miner_ip(ip):
-    print(f'[{c.MAG}###{c.RES}]\t{c.MAG}Threat Miner (IP){c.RES}')
-    ## todo: if scanning subdomain, re-scan for root domain info before displaying results
+    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Threat Miner (IP){c.RES}')
+    ## todo: if scanning subdomain, re-scan for root domain info before displaying results?
     addr = f"https://api.threatminer.org/v2/host.php?q={ip}"
     headers = { "Accept": "application/json" }
     response = requests.get(addr, headers=headers)
@@ -244,19 +238,18 @@ def threat_miner_ip(ip):
             print(f'[{c.RED}#{c.RES}]\tThreat Miner scan {c.RED}failed{c.RES}')
         return False
     r = r['results'][0]
-    print(f"[{c.CYAN}#{c.RES}]\tCountry Code:\t\t{c.CYAN}{r['cc']}{c.RES}")
-    if r['org_name']:
-        print(f"[{c.CYAN}#{c.RES}]\tOrganization:\t\t{c.CYAN}{r['org_name']}{c.RES}")
-    if r['register']:
-        print(f"[{c.CYAN}#{c.RES}]\tRegistrar:\t\t{c.CYAN}{r['register']}{c.RES}")
+
+    if 'cc' in r: print(f"[{c.CYAN}#{c.RES}]\tCountry Code:\t\t{c.CYAN}{r['cc']}{c.RES}")
+    if 'org_name' in r: print(f"[{c.CYAN}#{c.RES}]\tOrganization:\t\t{c.CYAN}{r['org_name']}{c.RES}")
+    if 'register' in r: print(f"[{c.CYAN}#{c.RES}]\tRegistrar:\t\t{c.CYAN}{r['register']}{c.RES}")
 
 def prompt_whois(url):
-    print(f'[{c.MAG}###{c.RES}]\t{c.MAG}Promptapi WHOIS{c.RES}')
-    url = strip_canon(url)
+    # seems like this can only scan root domains, so convert any urls to that first
+    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Promptapi WHOIS{c.RES}')
+    url = get_domain(url)
     addr = f"https://api.promptapi.com/whois/query?domain={url}"
     headers= {"apikey": API_KEYS['prompt-whois']}
     response = requests.get(addr, headers=headers)
-
     status = response.status_code
     if status != 200:
         if status == 404:
@@ -268,23 +261,23 @@ def prompt_whois(url):
         return False
     r = response.json()['result']
 
-    print(f"[{c.CYAN}#{c.RES}]\tDomain:\t\t\t{c.CYAN}{r['domain_name']}.{c.RES}")
-    print(f"[{c.CYAN}#{c.RES}]\tDomain Creation Date:\t{c.CYAN}{r['creation_date']}.{c.RES}")
-    print(f"[{c.CYAN}#{c.RES}]\tRegistrar:\t\t{c.CYAN}{r['registrar']}{c.RES}")
-    print(f"[{c.CYAN}#{c.RES}]\tRegistrant Country:\t{c.CYAN}{r['country']}{c.RES}")
-    print(f"[{c.CYAN}#{c.RES}]\tRegistrant Org:\t\t{c.CYAN}{r['org']}{c.RES}")
+    if 'domain_name' in r: print(f"[{c.CYAN}#{c.RES}]\tDomain:\t\t\t{c.CYAN}{r['domain_name']}.{c.RES}")
+    if 'creation_date' in r: print(f"[{c.CYAN}#{c.RES}]\tDomain Creation Date:\t{c.CYAN}{r['creation_date']}.{c.RES}")
+    if 'registrar' in r: print(f"[{c.CYAN}#{c.RES}]\tRegistrar:\t\t{c.CYAN}{r['registrar']}{c.RES}")
+    if 'country' in r: print(f"[{c.CYAN}#{c.RES}]\tRegistrant Country:\t{c.CYAN}{r['country']}{c.RES}")
+    if 'org' in r: print(f"[{c.CYAN}#{c.RES}]\tRegistrant Org:\t\t{c.CYAN}{r['org']}{c.RES}")
 
 def abuseipdb(ip):
-    print(f'[{c.MAG}###{c.RES}]\t{c.MAG}AbuseIPDB{c.RES}')
+    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}AbuseIPDB{c.RES}')
     cats = {
         1: "DNS Compromise",
         2: "DNS Poisoning",
         3: "Fraud Orders",
         4: "DDoS Attack",
-        5: "FTP Brute-Force", 	
+        5: "FTP Brute-Force",
         6: "Ping of Death",
         7: "Phishing",
-        8: "Fraud VoIP", 	
+        8: "Fraud VoIP",
         9: "Open Proxy",
         10: "Web Spam",
         11: "Email Spam",
@@ -295,9 +288,9 @@ def abuseipdb(ip):
         16: "SQL Injection",
         17: "Email Spoofing",
         18: "Brute-Force",
-        19: "Bad Web Bot",	
-        20: "Exploited Host", 	
-        21: "Web App Attack",	
+        19: "Bad Web Bot",
+        20: "Exploited Host",
+        21: "Web App Attack",
         22: "SSH",
         23: "IoT Targeted"}
 
@@ -318,56 +311,65 @@ def abuseipdb(ip):
         return False
     r = response.json()['data']
 
-    totalReports = r['totalReports']
-    if totalReports == 0:
-        totalRepColor = c.GREEN
-    if totalReports > 0:
-        totalRepColor = c.GRAY
-    if totalReports >= 500:
-        totalRepColor = c.YELLOW
-    if totalReports >= 1000:
-        totalRepColor = c.RED
+    if 'totalReports' in r:
+        total_reports = r['totalReports']
+        if total_reports == 0:
+            rep_color = c.GREEN
+        elif total_reports < 500:
+            rep_color = c.GRAY
+        elif total_reports < 1000:
+            rep_color = c.YELLOW
+        else:
+            rep_color = c.RES
+    else:
+        total_reports = False
 
-    acs = r['abuseConfidenceScore']
-    if acs == 0:
-        acsColor = c.GREEN
-    if acs > 0:
-        acsColor = c.GRAY
-    if acs > 50:
-        acsColor = c.YELLOW
-    if acs >= 75:
-        acsColor = c.RED
+    if 'abuseConfidenceScore' in r:
+        acs = r['abuseConfidenceScore']
+        if acs == 0:
+            acs_color = c.GREEN
+        elif acs < 50:
+            acs_color = c.GRAY
+        elif acs < 75:
+            acs_color = c.YELLOW
+        else:
+            acs_color = c.RED
+    else:
+        acs = False
 
-    print(f"[{c.CYAN}#{c.RES}]\tCountry:\t\t\t{c.CYAN}{r['countryName']}{c.RES}")
-    print(f"[{c.CYAN}#{c.RES}]\tUsage Type:\t\t\t{c.CYAN}{r['usageType']}{c.RES}")
-    print(f"[{c.CYAN}#{c.RES}]\tISP:\t\t\t\t{c.CYAN}{r['isp']}.{c.RES}")
-    print(f"[{c.CYAN}#{c.RES}]\tDomain:\t\t\t\t{c.CYAN}{r['domain']}{c.RES}")
-    print(f"[{totalRepColor}#{c.RES}]\tTotal Reports:\t\t\t{totalRepColor}{str(totalReports)}{c.RES}")
-    print(f"[{acsColor}#{c.RES}]\tAbuse Confidence Score:\t\t{acsColor}{acs}{c.RES}")
-    if r['totalReports'] > 0:
-        rep = r['reports'][0]
-        repdate = rep['reportedAt']
+    if 'countryName' in r: print(f"[{c.CYAN}#{c.RES}]\tCountry:\t\t{c.CYAN}{r['countryName']}{c.RES}")
+    if 'usageType' in r: print(f"[{c.CYAN}#{c.RES}]\tUsage Type:\t\t{c.CYAN}{r['usageType']}{c.RES}")
+    if 'isp' in r: print(f"[{c.CYAN}#{c.RES}]\tISP:\t\t\t{c.CYAN}{r['isp']}.{c.RES}")
+    if 'domain' in r: print(f"[{c.CYAN}#{c.RES}]\tDomain:\t\t\t{c.CYAN}{r['domain']}{c.RES}")
+    if total_reports: print(f"[{rep_color}#{c.RES}]\tTotal Reports:\t\t{rep_color}{str(total_reports)}{c.RES}")
+    if acs: print(f"[{acs_color}#{c.RES}]\tAbuse Confidence Score:\t{acs_color}{acs}{c.RES}")
+
+    ## if reports are found, display info from the most recent report
+    if total_reports > 0:
+        last_report = r['reports'][0]
+        report_date = last_report['reportedAt']
         categoryList = ""
-        for cat in rep['categories']:
+        for cat in last_report['categories']:
             categoryList += f'{cats[cat]}, '
         categoryList = categoryList.rstrip(', ')
         print(f"[{c.YELLOW}>>{c.RES}]\tMost Recent Report:")
-        #print(f"[{c.CYAN}#{c.RES}]\tComment:\t\t\t{c.CYAN}{rep['comment']}.{c.RES}")
-        print(f"[{c.CYAN}#{c.RES}]\tReport Date:\t\t\t{c.CYAN}{repdate}{c.RES}")
+        # these comments can be messy
+        # print(f"[{c.CYAN}#{c.RES}]\tComment:\t\t\t{c.CYAN}{last_report['comment']}.{c.RES}")
+        print(f"[{c.CYAN}#{c.RES}]\tReport Date:\t\t\t{c.CYAN}{report_date}{c.RES}")
         print(f"[{c.CYAN}#{c.RES}]\tCategories:\t\t\t{c.CYAN}{categoryList}{c.RES}")
 
 def google_safe_browse(url):
     # doesn't flag malicious sites that it's own sister utility (the manual submission safe-browse checker tool) flags
     # not perfect but sometimes it works!
-    print(f'[{c.MAG}###{c.RES}]\t{c.MAG}Google Safe Browsing{c.RES}')
+    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Google Safe Browsing{c.RES}')
 
-    payload = { 
+    payload = {
         "client": {"clientId": "aggrescan", "clientVersion": "0.5"},
         'threatInfo': {"threatTypes": [
-                            "SOCIAL_ENGINEERING", 
-                            "MALWARE", 
-                            "POTENTIALLY_HARMFUL_APPLICATION", 
-                            "UNWANTED_SOFTWARE", 
+                            "SOCIAL_ENGINEERING",
+                            "MALWARE",
+                            "POTENTIALLY_HARMFUL_APPLICATION",
+                            "UNWANTED_SOFTWARE",
                             "THREAT_TYPE_UNSPECIFIED"
                             ],
                        'platformTypes': ["ANY_PLATFORM"],
@@ -392,7 +394,6 @@ def google_safe_browse(url):
 
 # color helper defs, can be reset to empty strings for colorblind-friendly output
 class c:
-    MAG = Fore.MAGENTA
     CYAN = Fore.CYAN
     BLUE = Fore.BLUE
     GREEN = Fore.GREEN
@@ -402,7 +403,7 @@ class c:
     RES = Style.RESET_ALL
 
 def colorblind():
-    c.MAG = ""
+    c.BLUE = ""
     c.CYAN = ""
     c.BLUE = ""
     c.GREEN = ""
@@ -415,7 +416,7 @@ def colorblind():
 def clear():
     os.system('cls||clear')
 
-# if link is not http or https, add http
+# if link is not http or https, add https
 def canonicalize(url):
     if not re.match('(?:http|https)://', url):
         return 'http://{}'.format(url)
@@ -452,25 +453,27 @@ def load_api_keys():
                 API_KEYS[line[0]] = line[1]
     except IOError as err:
         print("Error loading apis: " + err)
-    
+
     none_found = True
     for config in API_KEYS:
         if API_KEYS[config]:
-            print(f"[{c.GREEN}#{c.RES}]\tsuccessfully loaded {c.CYAN}{config}{c.RES} key.")
+            print(f"[{c.CYAN}#{c.RES}]\tsuccessfully loaded {c.GREEN}{config}{c.RES} key.")
+            time.sleep(0.2)
             none_found = False
     if none_found:
         print(f"[{c.RED}#{c.RES}]\tno API keys loaded. Exiting.")
         exit(1)
+    time.sleep(2)
 
 # parse command line arguments
 def parse_args():
     # Parse command line arguments
-    desc = f'{c.MAG}Aggrescan.py{c.RES} - Daniel Casey\nVersion {c.CYAN}0.5{c.RES}\n{c.GRAY}Scan URLS / IPs / Email addresses for malicious indicators{c.RES}\n'
+    desc = f'{c.BLUE}Aggrescan.py{c.RES} - Daniel Casey\nVersion {c.CYAN}0.5{c.RES}\n{c.GRAY}Scan URLS / IPs / Email addresses for malicious indicators{c.RES}\n'
 
     parser = argparse.ArgumentParser(description=desc,allow_abbrev=False,formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('target', type=str, help="The URL/IP to scan")
     # haven't implemented verbosity yet in messages
-    #parser.add_argument('-v', '--verbose', action="store_true", help="Verbose output")
+    parser.add_argument('-v', '--verbose', action="store_true", help="display verbose output")
     parser.add_argument('-q', '--quiet', action="store_true", help="remove color formatting from output")
     args = parser.parse_args()
     return args
@@ -489,7 +492,7 @@ def parse_target(target):
             return("url")
     else:
         return False
-    
+
 # utility to check if url is valid
 def url_is_valid(url):
     canon = canonicalize(url)
@@ -501,6 +504,7 @@ def url_is_valid(url):
     return True
 
 # wrapper for socket.gethostbyname() function
+# if IP can't be resolved return false
 def resolve_host(url):
     try:
         ip = socket.gethostbyname(strip_canon(url))
@@ -508,43 +512,62 @@ def resolve_host(url):
     except socket.gaierror as err:
         return False
 
+# try to parse out domain (NOT PERFECT)
+# for ex. bbc.co.uk will break this
+# need to add -f, --force for option to explicitly scan url / ip
+# and warning to users to use -f if scans aren't working as desired
+def get_domain(url):
+    url = strip_canon(url).split('/')[0]
+    tokens = url.split('.')
+    url = f'{tokens[-2]}.{tokens[-1]}'
+    return url
+
 # Main Loop
 def main():
     clear()
-    args = parse_args()
-    if args.quiet:
-        colorblind()
-    print(f'Welcome to {c.MAG}Aggrescan{c.RES}')
-    load_api_keys()
-    clear()
-    target_type = parse_target(args.target.strip())
-    if not target_type:
-        print(f'[{c.RED}X{c.RES}]\tUnable to determine target type. Make sure target is a valid URL or IP address.')
-    else:
-        if target_type == "email":
-            print(f'[{c.RED}X{c.RES}]\tEmail address scan not yet implemented.')
+    try:
+        args = parse_args()
+        if args.quiet:
+            colorblind()
+        print(f'Welcome to {c.BLUE}Aggrescan{c.RES}')
+        load_api_keys()
+        if not args.verbose: clear()
+        target_type = parse_target(args.target.strip())
+        if not target_type:
+            print(f'[{c.RED}X{c.RES}]\tUnable to determine target type. Make sure target is a valid URL or IP address.')
         else:
-            if target_type == "ip":
-                ip = args.target
-                print(f'Aggrescan report for IP: {c.MAG}{ip}{c.RES}')
-                threat_miner_ip(ip)
-                fraud_guard(ip)
-                abuseipdb(ip)
-            elif target_type == "url":
-                url = args.target
-                print(f'Aggrescan report for URL: {c.MAG}{url}{c.RES}')
-                ip = resolve_host(url)
-                u = urlscan(url)
-                if ip:
-                    print(f'IP Resolved to: {c.MAG}{ip}{c.RES}')
-                else:
-                    ip = u['page']['ip']
-                threat_miner_url(url)
-                prompt_whois(url)
-                google_safe_browse(url)
-                polyswarm(url)
-                virus_total(url)
-                fraud_guard(ip)
-                abuseipdb(ip)
-        
+            if target_type == "email":
+                print(f'[{c.RED}X{c.RES}]\tEmail address scan not yet implemented.')
+            else:
+                if target_type == "ip":
+                    ip = args.target
+                    print(f'Aggrescan report for IP: {c.BLUE}{ip}{c.RES}')
+                    threat_miner_ip(ip)
+                    fraud_guard(ip)
+                    abuseipdb(ip)
+                    urlscan(canonicalize(ip))
+                elif target_type == "url":
+                    url = canonicalize(args.target)
+                    print(f'Aggrescan report for URL: {c.BLUE}{url}{c.RES}')
+                    ip = resolve_host(url)
+                    u = urlscan(url)
+
+                    # try to resolve IP with socket, if that doesn't work and URL scan configured, use that
+                    # otherwise, don't run IP scans
+                    if ip:
+                        if args.verbose: print(f'[{c.GRAY}#{c.RES}]\tIP resolved to: {c.BLUE}{ip}{c.RES}')
+                        pass
+                    else:
+                        if u: ip = u['page']['ip']
+                    threat_miner_url(url)
+                    prompt_whois(url)
+                    google_safe_browse(url)
+                    polyswarm(url)
+                    virus_total(url)
+                    if ip:
+                        fraud_guard(ip)
+                        abuseipdb(ip)
+    except KeyboardInterrupt as e:
+        print(f'[{c.GRAY}X{c.RES}]\tManually exiting Aggrescan. {c.BLUE}Goodbye.{c.RES}')
+
 main()

@@ -1,5 +1,5 @@
 #abuseipdb KEY
-#fraud-guard KEY
+#fraud-guard username|password
 #google-safe-browse KEY
 #polyswarm KEY
 #prompt-whois KEY

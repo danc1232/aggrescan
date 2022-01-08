@@ -98,15 +98,14 @@ def urlscan(url):
 
 def fraud_guard(ip):
     if not API_KEYS['fraud-guard']: return False
-    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Fraudguard.io{c.RES}')
-    print(f'[{c.CYAN}#{c.RES}]\tScanning IP:\t\t{c.CYAN}{ip}{c.RES}')
+    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Fraudguard.io{c.RES} scanning:\t{c.CYAN}{ip}{c.RES}')
     addr = f'https://api.fraudguard.io/ip/{ip}'
     creds = API_KEYS['fraud-guard'].split('|')
     resp = requests.get(addr, verify=True, auth=HTTPBasicAuth(creds[0],creds[1]))
     r = resp.json()
-    print(f"[{c.CYAN}#{c.RES}]\tCountry:\t\t{c.CYAN}{r['country']}{c.RES}")
-    print(f"[{c.CYAN}#{c.RES}]\tThreat:\t\t\t{c.CYAN}{r['threat']}{c.RES}")
-    print(f"[{c.CYAN}#{c.RES}]\tRisk Level:\t\t{c.CYAN}{r['risk_level']}{c.RES}")
+    if 'country' in r: print(f"[{c.CYAN}#{c.RES}]\tCountry:\t\t{c.CYAN}{r['country']}{c.RES}")
+    if 'threat' in r: print(f"[{c.CYAN}#{c.RES}]\tThreat:\t\t\t{c.CYAN}{r['threat']}{c.RES}")
+    if 'risk_level' in r: print(f"[{c.CYAN}#{c.RES}]\tRisk Level:\t\t{c.CYAN}{r['risk_level']}{c.RES}")
 
     return r
 
@@ -154,7 +153,7 @@ def polyswarm(url):
 
 def virus_total(url):
     if not API_KEYS['virustotal']: return False
-    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Virus Total{c.RES}')
+    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Virus Total{c.RES} scanning:\t{c.CYAN}{url}{c.RES}')
     addr = 'https://www.virustotal.com/api/v3/urls'
     payload = {"url": url}
     headers = { "Accept": "application/json","x-apikey": API_KEYS['virustotal'],"Content-Type": "application/x-www-form-urlencoded" }
@@ -187,18 +186,18 @@ def virus_total(url):
     u = stats['undetected']
     t = stats['timeout']
     total = h+m+s+u+t
-    print(f'[{c.GREEN}#{c.RES}]\t{c.GREEN}{h}{c.RES}/{total}\t\t\t{c.GREEN}harmless{c.RES}')
-    print(f'[{c.CYAN}#{c.RES}]\t{c.CYAN}{u}{c.RES}/{total}\t\t\t{c.CYAN}undetected{c.RES}')
-    print(f'[{c.GRAY}#{c.RES}]\t{c.GRAY}{t}{c.RES}/{total}\t\t\t{c.GRAY}timeout{c.RES}')
-    print(f'[{c.YELLOW}#{c.RES}]\t{c.YELLOW}{s}{c.RES}/{total}\t\t\t{c.YELLOW}suspicious{c.RES}')
-    print(f'[{c.RED}#{c.RES}]\t{c.RED}{m}{c.RES}/{total}\t\t\t{c.RED}malicious{c.RES}')
+    if h > 0: print(f'[{c.GREEN}#{c.RES}]\t{c.GREEN}{h}{c.RES}/{total}\t\t\t{c.GREEN}harmless{c.RES}')
+    if u > 0: print(f'[{c.CYAN}#{c.RES}]\t{c.CYAN}{u}{c.RES}/{total}\t\t\t{c.CYAN}undetected{c.RES}')
+    if t > 0: print(f'[{c.GRAY}#{c.RES}]\t{c.GRAY}{t}{c.RES}/{total}\t\t\t{c.GRAY}timeout{c.RES}')
+    if s > 0: print(f'[{c.YELLOW}#{c.RES}]\t{c.YELLOW}{s}{c.RES}/{total}\t\t\t{c.YELLOW}suspicious{c.RES}')
+    if m > 0: print(f'[{c.RED}#{c.RES}]\t{c.RED}{m}{c.RES}/{total}\t\t\t{c.RED}malicious{c.RES}')
 
 def threat_miner_url(url,isRetry):
     url = strip_canon(url).split('/')[0]
     if isRetry:
         print(f'[{c.GRAY}###{c.RES}]\t{c.GRAY}Retrying root domain:{c.RES}\t{c.CYAN}{url}{c.RES}')
     else:
-        print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Threat Miner (URL){c.RES}: scanning {c.CYAN}{url}{c.RES}')
+        print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Threat Miner{c.RES} scanning:\t{c.CYAN}{url}{c.RES}')
     ## todo: if scanning subdomain, re-scan for root domain info before displaying results
     addr = f"https://api.threatminer.org/v2/domain.php?q={url}"
     headers = { "Accept": "application/json" }
@@ -234,7 +233,7 @@ def threat_miner_url(url,isRetry):
         if 'Organization' in i: print(f"[{c.CYAN}#{c.RES}]\tRegistrant Org:\t\t{c.CYAN}{i['Organization']}{c.RES}")
 
 def threat_miner_ip(ip):
-    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Threat Miner (IP){c.RES}')
+    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Threat Miner{c.RES} scanning:\t{c.CYAN}{ip}{c.RES}')
     ## todo: if scanning subdomain, re-scan for root domain info before displaying results?
     addr = f"https://api.threatminer.org/v2/host.php?q={ip}"
     headers = { "Accept": "application/json" }
@@ -280,7 +279,7 @@ def prompt_whois(url):
 
 def abuseipdb(ip):
     if not API_KEYS['abuseipdb']: return False
-    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}AbuseIPDB{c.RES}')
+    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}AbuseIPDB{c.RES} scanning:\t{c.CYAN}{ip}{c.RES}')
     cats = {
         1: "DNS Compromise",
         2: "DNS Poisoning",
@@ -323,37 +322,25 @@ def abuseipdb(ip):
         return False
     r = response.json()['data']
 
-    if 'totalReports' in r:
-        total_reports = r['totalReports']
-        if total_reports == 0:
-            rep_color = c.GREEN
-        elif total_reports < 500:
-            rep_color = c.GRAY
-        elif total_reports < 1000:
-            rep_color = c.YELLOW
-        else:
-            rep_color = c.RES
-    else:
-        total_reports = False
+    total_reports = r['totalReports'] if 'totalReports' in r else False
 
     if 'abuseConfidenceScore' in r:
         acs = r['abuseConfidenceScore']
         if acs == 0:
             acs_color = c.GREEN
         elif acs < 50:
-            acs_color = c.GRAY
-        elif acs < 75:
             acs_color = c.YELLOW
         else:
             acs_color = c.RED
     else:
         acs = False
+        acs_color = ""
 
     if 'countryName' in r: print(f"[{c.CYAN}#{c.RES}]\tCountry:\t\t{c.CYAN}{r['countryName']}{c.RES}")
     if 'usageType' in r: print(f"[{c.CYAN}#{c.RES}]\tUsage Type:\t\t{c.CYAN}{r['usageType']}{c.RES}")
     if 'isp' in r: print(f"[{c.CYAN}#{c.RES}]\tISP:\t\t\t{c.CYAN}{r['isp']}.{c.RES}")
     if 'domain' in r: print(f"[{c.CYAN}#{c.RES}]\tDomain:\t\t\t{c.CYAN}{r['domain']}{c.RES}")
-    if total_reports: print(f"[{rep_color}#{c.RES}]\tTotal Reports:\t\t{rep_color}{str(total_reports)}{c.RES}")
+    if total_reports: print(f"[{acs_color}#{c.RES}]\tTotal Reports:\t\t{acs_color}{str(total_reports)}{c.RES}")
     if acs: print(f"[{acs_color}#{c.RES}]\tAbuse Confidence Score:\t{acs_color}{acs}{c.RES}")
 
     ## if reports are found, display info from the most recent report
@@ -364,17 +351,19 @@ def abuseipdb(ip):
         for cat in last_report['categories']:
             categoryList += f'{cats[cat]}, '
         categoryList = categoryList.rstrip(', ')
-        print(f"[{c.YELLOW}>>{c.RES}]\tMost Recent Report:")
+        print(f"[{c.GRAY}>>{c.RES}]\tMost Recent Report:")
         # these comments can be messy
         # print(f"[{c.CYAN}#{c.RES}]\tComment:\t\t\t{c.CYAN}{last_report['comment']}.{c.RES}")
         print(f"[{c.CYAN}#{c.RES}]\tReport Date:\t\t{c.CYAN}{report_date}{c.RES}")
-        print(f"[{c.CYAN}#{c.RES}]\tCategories:\t\t{c.CYAN}{categoryList}{c.RES}")
+        print(f"[{c.YELLOW}#{c.RES}]\tCategories:\t\t{c.YELLOW}{categoryList}{c.RES}")
 
 def google_safe_browse(url):
     if not API_KEYS['google-safe-browse']: return False
     # doesn't flag malicious sites that it's own sister utility (the manual submission safe-browse checker tool) flags
     # not perfect but sometimes it works!
-    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Google Safe Browsing{c.RES}')
+    url = canonicalize(strip_canon(url).split('/')[0],True)
+    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Google SB{c.RES} scanning:\t{c.CYAN}{url}{c.RES}')
+
 
     payload = {
         "client": {"clientId": "aggrescan", "clientVersion": "0.5"},
@@ -409,6 +398,7 @@ def google_safe_browse(url):
 
 # color helper defs, can be reset to empty strings for colorblind-friendly output
 class c:
+    MAG = Fore.MAGENTA
     CYAN = Fore.CYAN
     BLUE = Fore.BLUE
     GREEN = Fore.GREEN
@@ -431,10 +421,13 @@ def colorblind():
 def clear():
     os.system('cls||clear')
 
-# if link is not http or https, add https
-def canonicalize(url):
+# if link is not http or https, add http/s
+def canonicalize(url,s):
     if not re.match('(?:http|https)://', url):
-        return 'http://{}'.format(url)
+        if s:
+            return 'https://{}'.format(url)
+        else:
+            return 'http://{}'.format(url)
     return url
 
 # if link starts with http or https, remove it
@@ -501,7 +494,7 @@ def parse_target(target):
         return("ip")
     elif re.fullmatch(email_regex,target):
         return("email")
-    elif re.fullmatch(url_regex,canonicalize(target)):
+    elif re.fullmatch(url_regex,canonicalize(target,False)):
         if url_is_valid(target):
             return("url")
     else:
@@ -509,7 +502,7 @@ def parse_target(target):
 
 # utility to check if url is valid
 def url_is_valid(url):
-    canon = canonicalize(url)
+    canon = canonicalize(url,False)
     prepared_request = PreparedRequest()
     try:
         prepared_request.prepare_url(canon, None)
@@ -543,7 +536,7 @@ def main():
         args = parse_args()
         if args.quiet:
             colorblind()
-        print(f'Welcome to {c.BLUE}Aggrescan{c.RES}')
+        print(f'[{c.GREEN}>>>{c.RES}]\t{c.GRAY}Welcome to{c.RES} {c.GREEN}Aggrescan{c.RES}')
         load_api_keys()
         if not args.verbose: clear()
         target_type = parse_target(args.target.strip())
@@ -555,14 +548,14 @@ def main():
             else:
                 if target_type == "ip":
                     ip = args.target
-                    print(f'Aggrescan report for IP: {c.BLUE}{ip}{c.RES}')
+                    print(f'[{c.GREEN}>>>{c.RES}]\tAggrescan report for IP: {c.BLUE}{ip}{c.RES}')
                     threat_miner_ip(ip)
                     fraud_guard(ip)
                     abuseipdb(ip)
-                    urlscan(canonicalize(ip))
+                    urlscan(canonicalize(ip,False))
                 elif target_type == "url":
-                    url = canonicalize(args.target)
-                    print(f'Aggrescan report for URL: {c.BLUE}{url}{c.RES}')
+                    url = canonicalize(args.target,True)
+                    print(f'[{c.GREEN}>>>{c.RES}]\tAggrescan report for URL: {c.BLUE}{url}{c.RES}')
                     ip = resolve_host(url)
                     u = urlscan(url)
                     # try to resolve IP with socket, if that doesn't work and URL scan configured, use that
@@ -572,6 +565,10 @@ def main():
                         pass
                     else:
                         if u: ip = u['page']['ip']
+                        # ip still not resolved, warn users
+                        if not ip:
+                            print(f'[{c.RED}X{c.RES}]\tIP not resolved (try root domain scan or without subdirectory?)')
+                            print(f'[{c.RED}X{c.RES}]\tSkipping IP scans')
                     threat_miner_url(url,False)
                     prompt_whois(url)
                     google_safe_browse(url)

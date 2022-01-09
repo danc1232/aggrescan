@@ -363,8 +363,8 @@ def google_safe_browse(url):
     # doesn't flag malicious sites that it's own sister utility (the manual submission transparency report utility) flags
     # according to the issue trackers / bug reports I've read (some beginning in 2015...) not a lot of progress will be made on that front
     # not perfect but sometimes it works!
-    url = canonicalize(strip_canon(url).split('/')[0],True)
-    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}Google SB{c.RES} scanning:\t{c.CYAN}{url}{c.RES}')
+    url = canonicalize(url,True)
+    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}GSB Lookup API:{c.RES}\t{c.CYAN}{url}{c.RES}')
 
 
     payload = {

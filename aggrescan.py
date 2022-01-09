@@ -1,9 +1,8 @@
 # AGGRESCAN.PY - Daniel Casey
 # https://github.com/danc1232/aggrescan
 
-
 # API Aggregation script to scan URLs, IPs, and email addresses for malicious indicators
-# v0.6.1
+# v0.7.0
 
 # standard packages
 import json
@@ -505,7 +504,7 @@ def load_api_keys():
 # parse command line arguments
 def parse_args():
     # Parse command line arguments
-    desc = f'{c.BLUE}Aggrescan.py{c.RES} - Daniel Casey\nVersion {c.CYAN}0.6.1{c.RES}\n{c.GRAY}Scan URLS / IPs / Email addresses for malicious indicators{c.RES}\n'
+    desc = f'{c.BLUE}Aggrescan.py{c.RES} - Daniel Casey\nVersion {c.CYAN}0.7.0{c.RES}\n{c.GRAY}Scan URLS / IPs / Email addresses for malicious indicators{c.RES}\n'
 
     parser = argparse.ArgumentParser(description=desc,allow_abbrev=False,formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('target', type=str, help="The URL/IP to scan")

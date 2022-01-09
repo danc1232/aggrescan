@@ -21,6 +21,8 @@ from requests.models import PreparedRequest
 import requests.exceptions
 from polyswarm_api.api import PolyswarmAPI
 from colorama import Fore, Style
+from bs4 import BeautifulSoup
+from requests_html import HTMLSession
 
 # API request wrappers / output generation
 
@@ -393,6 +395,35 @@ def google_safe_browse(url):
 
     return True
 
+# Scraping functions (manually access non-API resources)
+
+def google_sb_scrape(url):
+    print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}GSB Site Report:{c.RES} {c.CYAN}{url}{c.RES}')
+    url = strip_canon(url)
+    session = HTMLSession()
+    addr = f'https://transparencyreport.google.com/safe-browsing/search?url={url}'
+    try:
+        r = session.get(addr)
+        r.html.render(timeout=20)
+        session.close()
+    except:
+        print(f"[{c.YELLOW}#{c.RES}]\tGSB Site Report timed out.")
+        return False
+
+    soup = BeautifulSoup(r.html.html, "html.parser")
+    value = soup.find('span', {"aria-label":'figure value'})
+
+    if value.text == "This site is unsafe":
+        print(f"[{c.RED}#{c.RES}]\t{c.RED}Unsafe content detected!{c.RES}")
+    elif value.text == "Some pages on this site are unsafe":
+        print(f"[{c.YELLOW}#{c.RES}]\t{c.YELLOW}Some unsafe content detected!{c.RES}")
+    elif value.text == "No unsafe content found":
+        print(f"[{c.GREEN}#{c.RES}]\t{c.GREEN}No unsafe content found.{c.RES}")
+    elif value.text == "Check a specific URL":
+        print(f"[{c.GRAY}X{c.RES}]\tNon-specific URL provided.")
+    else:
+         print(f"[{c.GRAY}?{c.RES}]\t{value.text}")
+
 # Utilities
 
 # color helper defs, can be reset to empty strings for colorblind-friendly output
@@ -573,6 +604,7 @@ def main():
                     threat_miner_url(url,False)
                     prompt_whois(url)
                     google_safe_browse(url)
+                    google_sb_scrape(url)
                     polyswarm(url)
                     virus_total(url)
                     if ip:

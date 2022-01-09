@@ -1,3 +1,4 @@
+
 # aggrescan.py
 
 ##  API Aggregation script to scan URLs / IPs / email addresses for malicious indicators
@@ -5,12 +6,19 @@
 Created by Daniel Casey
 
 ---
-### Current Version: *v0.6.1*
-### Features
- - Loads API keys from *.apis* file in working directory
- - Scans URLs or IPs (email address scanning functionality not yet implemented)
- - Detects type of scan (URL / IP) automatically
+### Current Version: *v0.7.0*
+
+### Major Changes:
+- Can now run limited scans with no API keys configured!
+- Web-scraping functionality added to expand into non-API resources, with one resource already configured: <br> [Google Safe Browsing Site Report.](https://transparencyreport.google.com/safe-browsing/search)
+- General bug-fixes, expanded error-handling, and output optimizations.
+
+### Core Features
+ - Loads any combination of configured API keys from *.apis* file in working directory
+ - Scans URLs or IPs using 9 different APIs / resources (so far)
+ - Detects type of scan (URL / IP*) automatically
  - Generates summary of completed scans in report format
+<br>**email address scans to be added in future release*
 
 ### Integrated APIs
 | API | Scan Type | API Limit(s) | Notes |
@@ -56,12 +64,16 @@ See also the [official documentation for venv](https://docs.python.org/3/library
 ### Step 3: Install required packages.
 You can use pip and the provided requirements.txt file to quickly and easily install all required packages:
 
-    python -m pip install -r requirements.txt
+    pip install -r requirements.txt
+    OR
+    python -m pip install -r requirements.txt #if pip isn't on your PATH for some reason
 
-*Note: if you are using a virtual environment, make sure it's activated before installing packages via pip.*
+*Note: If you are using a virtual environment, make sure it's activated before installing packages via pip.*
+
+**Another Note: During the first execution of Aggrescan, a headless Chromium browser client will be installed for web-scraping purposes. The download may take a few minutes, but will only happen once.**
 
 ### Step 4: Create and configure API keys.
-See the *Integrated APIs* table above for links to register for API access and create your keys.
+While there are a few scans that can be performed without registering for API keys, the functionality of Aggrescan is greatly expanded by the integrated APIs. See the *Integrated APIs* table above for links to register for API access and create your keys.
 
 Once you have a key, uncomment (remove the leading "#" from) the corresponding line in the *apis.txt* file in your working directory and replace the "KEY" placeholder with your actual key.
 

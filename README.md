@@ -1,3 +1,4 @@
+
 <br>
 
 # Aggrescan.py
@@ -8,9 +9,12 @@ Created by Daniel Casey
 ### Current Version: *v0.8.0*
 
 ### Major Changes:
-- All scans now run asynchronously!
-- Refactored code to promote clarity and extensibility
-- General bug-fixes, expanded error-handling, and output optimizations.
+- All scans now run **asynchronously**!
+- Restructured code to promote clarity and extensibility
+- Replaced *verbose* option (-v) with **debug** (-d), and added plenty of debugging info points
+- Added **keys** option (-k) to see which keys are configured without running any scans
+- Graceful (mostly) error-handling
+- General bug-fixes and output refactoring
 
 ### Core Features
  - 3 default scans (Google Safe Browsing Site Report, Threatminer URL & IP) - *no API key needed*
@@ -18,6 +22,10 @@ Created by Daniel Casey
  - Asynchronously scans URLs or IPs* (scan type detected automatically)
  - Generates summary of completed scans in clean report format (colorless option available)
 <br>**email address scans to be added in future release*
+
+### Known Issues
+- Still need to provide a dummy "target" to check key status with -k option
+- Some scans (especially *urlscan*) cannot be reliably cancelled. Interrupts via Ctrl+C work eventually, you may just have to try a few times.
 
 ### Integrated APIs
 | API | Scan Type | API Limit(s) | Notes |
@@ -101,13 +109,14 @@ ___
 ## Usage
 
 
-    python aggrescan.py [-h] [-q] [-v] target
+    python aggrescan.py [-d] [-h] [-q] target
 
 | argument | description |
 |--|--|
+| -d, --debug | display lots of additional info |
 | -h, --help | display usage information and exit |
-| -q, --quiet | quiet mode: strip color formatting from output (useful for redirection) |
-| -v, --verbose | display verbose output |
-| target | The URL or IP address to scan
+| -k, --keys | check status of API keys |
+| -q, --quiet | remove color formatting from output |
+| target | The URL or IP address to scan |
 
 ___

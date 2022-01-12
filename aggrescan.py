@@ -42,30 +42,36 @@ import aiohttp
 
 ### URLSCAN ######################################################
 async def urlscan_req(url):
+### TODO -- figure out why you can't reliably cancel / interrupt this scan?
     headers = {'API-Key':API_KEYS["urlscan"],'Content-Type':'application/json'}
     data = {"url": url, "visibility": "unlisted"}
-    async with aiohttp.ClientSession() as session:
-        async with session.post('https://urlscan.io/api/v1/scan',headers=headers, data=json.dumps(data)) as post_resp:
-            pr = await post_resp.json()
-            finished = False
-            TIMEOUT_LIMIT = 5
-            retries = 0
-            if pr['message'] == 'Submission successful':
-                UUID = pr['uuid']
-            else:
-                return ["failed", retries]
-            await asyncio.sleep(6)
-            while not finished:
-                if TIMEOUT_LIMIT < 0:
-                    return ["timeout", retries]
-                async with session.get('https://urlscan.io/api/v1/result/' + UUID) as get_resp:
-                    gr = await get_resp.json()
-                    if 'status' in gr:
-                        TIMEOUT_LIMIT -= 1
-                        await asyncio.sleep(2)
-                    else:
-                        finished = True
-            return [gr, retries]
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post('https://urlscan.io/api/v1/scan',headers=headers, data=json.dumps(data)) as post_resp:
+                pr = await post_resp.json()
+                finished = False
+                TIMEOUT_LIMIT = 5
+                retries = 0
+                if pr['message'] == 'Submission successful':
+                    UUID = pr['uuid']
+                else:
+                    return ["failed", retries]
+                await asyncio.sleep(6)
+                while not finished:
+                    if TIMEOUT_LIMIT < 0:
+                        return ["timeout", retries]
+                    async with session.get('https://urlscan.io/api/v1/result/' + UUID) as get_resp:
+                        gr = await get_resp.json()
+                        if 'status' in gr:
+                            TIMEOUT_LIMIT -= 1
+                            await asyncio.sleep(2)
+                        else:
+                            finished = True
+                return [gr, retries]
+    except (RuntimeError, asyncio.CancelledError):
+        if DEBUG: print(f'[{c.GRAY}?{c.RES}]\tURLSCAN -- RE / CE - CANCELLED')
+        await session.close()
+        raise asyncio.CancelledError
 
 async def urlscan_main(url):
     scan = await urlscan_req(url)
@@ -103,7 +109,11 @@ def urlscan_parse(url, resp, retries):
         if 'url' in p: print(f"[{c.CYAN}#{c.RES}]\tEffective URL:\t\t{c.CYAN}{p['url']}{c.RES}")
         if 'domain' in p: print(f"[{c.CYAN}#{c.RES}]\tResolved Hostname:\t{c.CYAN}{p['domain']}{c.RES}")
         if 'ip' in p: print(f"[{c.CYAN}#{c.RES}]\tPrimary Request IP:\t{c.CYAN}{p['ip']}{c.RES}")
-        if 'country' in p: print(f"[{c.CYAN}#{c.RES}]\tCountry:\t\t{c.CYAN}{cc.codes[p['country']]}{c.RES}")
+        if 'country' in p:
+            if p['country'] in cc.codes:
+                print(f"[{c.CYAN}#{c.RES}]\tCountry:\t\t{c.CYAN}{cc.codes[p['country']]}{c.RES}")
+            else:
+                print(f"[{c.CYAN}#{c.RES}]\tCountry:\t\t{c.CYAN}{p['country']}{c.RES}")
         if 'city' in p and p['city']: print(f"[{c.CYAN}#{c.RES}]\tCity:\t\t\t{c.CYAN}{p['city']}{c.RES}")
         if 'server' in p: print(f"[{c.CYAN}#{c.RES}]\tServer:\t\t\t{c.CYAN}{p['server']}{c.RES}")
         if 'certificates' in l: cert = l['certificates'][0] if l['certificates'] else False
@@ -171,15 +181,21 @@ async def tm_url_req(session, url, isRetry):
     # helper function to allow retries for threat_miner url scan
     addr = f"https://api.threatminer.org/v2/domain.php?q={url}"
     headers = { "Accept": "application/json" }
-    async with session.get(addr, headers=headers) as response:
-        r = await response.json()
-        status = int(r['status_code'])
-        if status == 404: # if results aren't found
-            if not isRetry: # no results found on first scan, try root domain scan
-                return await tm_url_req(session, get_domain(url), True)
-            # else, results sent along anyway
-        # if results are found, just send them along
-        return [r, isRetry]
+    try:
+        async with session.get(addr, headers=headers) as response:
+            r = await response.json()
+            status = int(r['status_code'])
+            if status == 404: # if results aren't found
+                if not isRetry: # no results found on first scan, try root domain scan
+                    return await tm_url_req(session, get_domain(url), True)
+                # else, results sent along anyway
+            # if results are found, just send them along
+            return [r, isRetry]
+    except asyncio.CancelledError:
+        if DEBUG: print(f'[{c.GRAY}?{c.RES}]\tTM_URL -- CANCELLED')
+        await session.close()
+        raise
+
 
 ### THREATMINER (IP) #############################################
 async def tm_ip_main(ip):
@@ -195,21 +211,30 @@ def tm_ip_parse(ip, scan):
         print(f'[{c.RED}#{c.RES}]\tThreat Miner scan {c.RED}failed{c.RES}')
         return False
     r = scan['results'][0]
-    if 'cc' in r: print(f"[{c.CYAN}#{c.RES}]\tCountry Code:\t\t{c.CYAN}{cc.codes[r['cc']]}{c.RES}")
+    if 'cc' in r:
+        if r['cc'] in cc.codes:
+            print(f"[{c.CYAN}#{c.RES}]\tCountry:\t{c.CYAN}{cc.codes[r['cc']]}{c.RES}")
+        else:
+            print(f"[{c.CYAN}#{c.RES}]\tCountry:\t{c.CYAN}{r['cc']}{c.RES}")
     if 'org_name' in r: print(f"[{c.CYAN}#{c.RES}]\tOrganization:\t\t{c.CYAN}{r['org_name']}{c.RES}")
     if 'register' in r: print(f"[{c.CYAN}#{c.RES}]\tRegistrar:\t\t{c.CYAN}{r['register']}{c.RES}")
 
 async def tm_ip_req(ip):
     addr = f"https://api.threatminer.org/v2/host.php?q={ip}"
     headers = { "Accept": "application/json" }
-    async with aiohttp.ClientSession() as session:
-        async with session.get(addr, headers=headers) as get_resp:
-            r = await get_resp.json()
-            status = int(r['status_code'])
-            if status != 200:
-                if status == 404: return "not found"
-                else: return "failed"
-            return r
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(addr, headers=headers) as get_resp:
+                r = await get_resp.json()
+                status = int(r['status_code'])
+                if status != 200:
+                    if status == 404: return "not found"
+                    else: return "failed"
+                return r
+    except asyncio.CancelledError:
+        if DEBUG: print(f'[{c.GRAY}?{c.RES}]\tTM_IP -- CANCELLED')
+        await session.close()
+        raise
 
 ### GOOGLE SAFE BROWSING API v4 ##################################
 async def gsb_api_main(url):
@@ -231,10 +256,15 @@ async def gsb_api_req(url):
                        'threatEntryTypes': ["URL"],
                        'threatEntries': [{"url": f'https://{url}'}]}}
     addr = f"https://safebrowsing.googleapis.com/v4/threatMatches:find?key={API_KEYS['google-safe-browse']}"
-    async with aiohttp.ClientSession() as session:
-        async with session.post(addr, json=payload) as post_resp:
-            r = await post_resp.json()
-            return r
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(addr, json=payload) as post_resp:
+                r = await post_resp.json()
+                return r
+    except asyncio.CancelledError:
+        if DEBUG: print(f'[{c.GRAY}?{c.RES}]\tGSB_API -- CANCELLED')
+        await session.close()
+        raise
 
 def gsb_api_parse(url, json):
     print(f'[{c.BLUE}###{c.RES}]\t{c.BLUE}GSB Lookup API:{c.RES}\t{c.CYAN}{url}{c.RES}')
@@ -249,17 +279,20 @@ def gsb_api_parse(url, json):
 ### GOOGLE SAFE BROWSING SITE REPORT #############################
 async def gsb_scrape_req(url):
     url = strip_canon(url)
-    asession = AsyncHTMLSession()
     addr = f'https://transparencyreport.google.com/safe-browsing/search?url={url}'
-
+    asession = AsyncHTMLSession(loop=asyncio.get_event_loop())
     try:
         r = await asession.get(addr)
         await r.html.arender(timeout=20)
         await asession.close()
         return r
-    except Exception as e:
-        # assume (or pretend) that any problems here are just timeouts
-        # print(str(e))
+    except (RuntimeError, asyncio.CancelledError):
+        if DEBUG: print(f'[{c.GRAY}?{c.RES}]\tGSB_SR -- RE / CE - CANCELLED')
+        await session.close()
+        raise asyncio.CancelledError
+    except:
+        if DEBUG: print(f'[{c.YELLOW}?{c.RES}]\tGSB_SR -- ERR - TIMEOUT?')
+        await asession.close()
         return "timeout"
 
 async def gsb_scrape_main(url):
@@ -331,26 +364,30 @@ async def virus_total_req(url,session):
     payload = {"url": url}
     headers = { "Accept": "application/json","x-apikey": API_KEYS['virustotal'],"Content-Type": "application/x-www-form-urlencoded" }
 
-    ### change this
-    async with session.post(addr, data=payload, headers=headers) as post_resp:
-        pr = await post_resp.json()
-        if post_resp.status == 200:
-            ID = pr['data']['id']
-        else:
-            return "failed"
-        addr = f'https://www.virustotal.com/api/v3/analyses/{ID}'
-        headers = { "Accept": "application/json", "x-apikey": API_KEYS['virustotal'] }
-        TIMEOUTS = 4
-        while True:
-            if TIMEOUTS < 0:
-                return "timeout"
-            async with session.get(addr, headers=headers) as get_resp:
-                gr = await get_resp.json()
-                if gr['data']['attributes']['status'] == 'completed':
-                    break
-                TIMEOUTS -= 1
-                await asyncio.sleep(5)
-        return gr
+    try:
+        async with session.post(addr, data=payload, headers=headers) as post_resp:
+            pr = await post_resp.json()
+            if post_resp.status == 200:
+                ID = pr['data']['id']
+            else:
+                return "failed"
+            addr = f'https://www.virustotal.com/api/v3/analyses/{ID}'
+            headers = { "Accept": "application/json", "x-apikey": API_KEYS['virustotal'] }
+            TIMEOUTS = 4
+            while True:
+                if TIMEOUTS < 0:
+                    return "timeout"
+                async with session.get(addr, headers=headers) as get_resp:
+                    gr = await get_resp.json()
+                    if gr['data']['attributes']['status'] == 'completed':
+                        break
+                    TIMEOUTS -= 1
+                    await asyncio.sleep(5)
+            return gr
+    except asyncio.CancelledError:
+        if DEBUG: print(f'[{c.GRAY}?{c.RES}]\tVIRUS_TOTAL -- CANCELLED')
+        await session.close()
+        raise
 
 async def virus_total_main(url):
     async with aiohttp.ClientSession() as session:
@@ -386,18 +423,23 @@ async def p_whois_req(url):
     addr = f"https://api.promptapi.com/whois/query?domain={url}"
     headers= {"apikey": API_KEYS['prompt-whois']}
 
-    async with aiohttp.ClientSession() as session:
-        async with session.get(addr, headers=headers) as get_resp:
-            gr = await get_resp.json()
-            status = get_resp.status
-            if status != 200:
-                if status == 404:
-                    return "not found"
-                elif status == 429:
-                    return "api limit"
-                else:
-                    return "failed"
-            return gr['result']
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(addr, headers=headers) as get_resp:
+                gr = await get_resp.json()
+                status = get_resp.status
+                if status != 200:
+                    if status == 404:
+                        return "not found"
+                    elif status == 429:
+                        return "api limit"
+                    else:
+                        return "failed"
+                return gr['result']
+    except asyncio.CancelledError:
+        if DEBUG: print(f'[{c.GRAY}?{c.RES}]\tPROMPT_WHOIS -- CANCELLED')
+        await session.close()
+        raise
 
 async def p_whois_main(url):
     scan = await p_whois_req(url)
@@ -417,7 +459,11 @@ def p_whois_parse(scan):
         if 'domain_name' in r: print(f"[{c.CYAN}#{c.RES}]\tDomain:\t\t\t{c.CYAN}{r['domain_name']}.{c.RES}")
         if 'creation_date' in r: print(f"[{c.CYAN}#{c.RES}]\tDomain Creation Date:\t{c.CYAN}{r['creation_date']}.{c.RES}")
         if 'registrar' in r: print(f"[{c.CYAN}#{c.RES}]\tRegistrar:\t\t{c.CYAN}{r['registrar']}{c.RES}")
-        if 'country' in r: print(f"[{c.CYAN}#{c.RES}]\tRegistrant Country:\t{c.CYAN}{cc.codes[r['country']]}{c.RES}")
+        if 'country' in r:
+            if r['country'] in cc.codes:
+                print(f"[{c.CYAN}#{c.RES}]\tRegistrant Country:\t{c.CYAN}{cc.codes[r['country']]}{c.RES}")
+            else:
+                print(f"[{c.CYAN}#{c.RES}]\tRegistrant Country:\t{c.CYAN}{r['country']}{c.RES}")
         if 'org' in r: print(f"[{c.CYAN}#{c.RES}]\tRegistrant Org:\t\t{c.CYAN}{r['org']}{c.RES}")
 
 ### FRAUDGUARD.IO ################################################
@@ -425,10 +471,15 @@ async def fraudguard_req(ip):
     addr = f'https://api.fraudguard.io/ip/{ip}'
     split = API_KEYS['fraud-guard'].split('|')
     creds = aiohttp.BasicAuth(split[0],split[1])
-    async with aiohttp.ClientSession() as session:
-        async with session.get(addr,auth=creds) as get_resp:
-            gr = await get_resp.json(content_type="text/html")
-            return gr
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(addr,auth=creds) as get_resp:
+                gr = await get_resp.json(content_type="text/html")
+                return gr
+    except asyncio.CancelledError:
+        if DEBUG: print(f'[{c.GRAY}?{c.RES}]\tFRAUDGUARD -- CANCELLED')
+        await session.close()
+        raise
 
 async def fraudguard_main(ip):
     scan = await fraudguard_req(ip)
@@ -450,10 +501,15 @@ async def abuseipdb_req(ip):
     endpoint = 'https://api.abuseipdb.com/api/v2/check'
     headers= {'Accept': 'application/json','Key': f"{API_KEYS['abuseipdb']}"}
     query = {'ipAddress': ip,'verbose': "True"}
-    async with aiohttp.ClientSession() as session:
-        async with session.get(endpoint, headers=headers, params=query) as get_resp:
-            gr = await get_resp.json()
-            return [gr, get_resp.status]
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(endpoint, headers=headers, params=query) as get_resp:
+                gr = await get_resp.json()
+                return [gr, get_resp.status]
+    except asyncio.CancelledError:
+        if DEBUG: print(f'[{c.GRAY}?{c.RES}]\tABUSE_IPDB -- CANCELLED')
+        await session.close()
+        raise
 
 async def abuseipdb_main(ip):
     scan = await abuseipdb_req(ip)
@@ -920,63 +976,71 @@ def get_domain(url):
     url = f'{tokens[-2]}.{tokens[-1]}'
     return url
 
+def shutdown():
+    print(f'[{c.YELLOW}X{c.RES}]\tShutdown complete. {c.BLUE}Goodbye.{c.RES}')
+    os.kill(os.getpid(), signal.SIGTERM)
+
 #########################  MAIN LOOP  ############################
-async def main():
+async def scans():
+# timer for debugging
     start = time.time() # for debugging
-    logging.root.setLevel(logging.WARNING) # clean up all the noise generated by logs
     clear()
-    try:
-        args = parse_args()
-        if args.quiet: colorblind()
-        print(f'[{c.GREEN}>>>{c.RES}]\t{c.GRAY}Welcome to{c.RES} {c.GREEN}Aggrescan{c.RES}')
-        if args.keys:
-            print(f'[{c.GRAY}#{c.RES}]\t{c.BLUE}Keys configured:{c.RES}')
-            load_api_keys()
-            exit(0)
-        else:
-            load_api_keys()
-        if not args.verbose: clear()
-        target_type = parse_target(args.target.strip())
-        tasks = []
-        if target_type == "email":
-            print(f'[{c.RED}X{c.RES}]\tEmail address scan not yet implemented.')
-        elif target_type == "ip":
-            # just run IP scans in this case
-            ip = args.target
-            print(f'[{c.GREEN}>>>{c.RES}]\tAggrescan report for IP: {c.BLUE}{ip}{c.RES}')
+    args = parse_args()
+    global DEBUG
+    DEBUG = args.debug
+    if args.quiet: colorblind()
+    print(f'[{c.GREEN}>>>{c.RES}]\t{c.GRAY}Welcome to{c.RES} {c.GREEN}Aggrescan{c.RES}')
+    time.sleep(0.5)
+    if args.keys:
+        print(f'[{c.GRAY}#{c.RES}]\t{c.BLUE}Keys configured:{c.RES}')
+        load_api_keys()
+        exit(0)
+    load_api_keys()
+    clear()
+    target_type = parse_target(args.target.strip())
+    tasks = []
+    if target_type == "email":
+        print(f'[{c.YELLOW}X{c.RES}]\tEmail address scan not yet implemented.')
+    elif target_type == "ip":
+        # just run IP scans in this case
+        ip = args.target
+        print(f'[{c.GREEN}>>>{c.RES}]\tAggrescan report for IP: {c.BLUE}{ip}{c.RES}')
+        tasks.append(asyncio.create_task(tm_ip_main(ip)))
+        if API_KEYS['fraud-guard']: tasks.append(asyncio.create_task(fraudguard_main(ip)))
+        if API_KEYS['abuseipdb']: tasks.append(asyncio.create_task(abuseipdb_main(ip)))
+    elif target_type == "url":
+        # run URL scans and IP scans if it resolves
+        url = canonicalize(args.target,True)
+        ip = resolve_host(url)
+        print(f'[{c.GREEN}>>>{c.RES}]\tAggrescan report for URL: {c.BLUE}{url}{c.RES}')
+        if DEBUG:
+            if ip:
+                print(f'[{c.GRAY}?{c.RES}]\tIP resolved to: {c.CYAN}{ip}{c.RES}')
+            else:
+                print(f'[{c.GRAY}?{c.RES}]\tIP could not be resolved.')
+        ### API SCANS ###
+        if API_KEYS['urlscan']: tasks.append(asyncio.create_task(urlscan_main(url)))
+        if API_KEYS['google-safe-browse']: tasks.append(asyncio.create_task(gsb_api_main(url)))
+        if API_KEYS['prompt-whois']: tasks.append(asyncio.create_task(p_whois_main(url)))
+        if API_KEYS['virustotal']: tasks.append(asyncio.create_task(virus_total_main(url)))
+        tasks.append(asyncio.create_task(tm_url_main(url)))
+
+        ### NON-API SCANS ###
+        tasks.append(asyncio.create_task(gsb_scrape_main(url)))
+
+        ### IP SCANS (if IP resolves)
+        if ip:
             tasks.append(asyncio.create_task(tm_ip_main(ip)))
             if API_KEYS['fraud-guard']: tasks.append(asyncio.create_task(fraudguard_main(ip)))
             if API_KEYS['abuseipdb']: tasks.append(asyncio.create_task(abuseipdb_main(ip)))
-        elif target_type == "url":
-            # run URL scans and IP scans if it resolves
-            url = canonicalize(args.target,True)
-            ip = resolve_host(url)
-            print(f'[{c.GREEN}>>>{c.RES}]\tAggrescan report for URL: {c.BLUE}{url}{c.RES}')
-            ### API SCANS ###
-            if API_KEYS['urlscan']: tasks.append(asyncio.create_task(urlscan_main(url)))
-            if API_KEYS['google-safe-browse']: tasks.append(asyncio.create_task(gsb_api_main(url)))
-            if API_KEYS['prompt-whois']: tasks.append(asyncio.create_task(p_whois_main(url)))
-            if API_KEYS['virustotal']: tasks.append(asyncio.create_task(virus_total_main(url)))
-            tasks.append(asyncio.create_task(tm_url_main(url)))
+    else:
+        print(f'[{c.YELLOW}X{c.RES}]\tUnable to determine target type. Make sure target is a valid URL or IP address.')
+        exit(0)
 
-            ### NON-API SCANS ###
-            tasks.append(asyncio.create_task(gsb_scrape_main(url)))
-
-            ### IP SCANS (if IP resolves)
-            if ip:
-                tasks.append(asyncio.create_task(tm_ip_main(ip)))
-                if API_KEYS['fraud-guard']: tasks.append(asyncio.create_task(fraudguard_main(ip)))
-                if API_KEYS['abuseipdb']: tasks.append(asyncio.create_task(abuseipdb_main(ip)))
-        else: print(f'[{c.RED}X{c.RES}]\tUnable to determine target type. Make sure target is a valid URL or IP address.')
-        await asyncio.gather(*tasks)
-    except KeyboardInterrupt as e:
-        print(f'[{c.GRAY}X{c.RES}]\tManually exiting Aggrescan. {c.BLUE}Goodbye.{c.RES}')
-
+    await asyncio.gather(*tasks,return_exceptions=True)
     end = time.time() # for debugging
-    print(f'Time to complete: {round(end - start, 2)}') # for debugging
+    if DEBUG: print(f'[{c.GRAY}?{c.RES}]\tTime to complete: {round(end - start, 2)}')
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
 def main():
     global DEBUG
     logging.root.setLevel(logging.CRITICAL) # clean up all the noise generated by logs

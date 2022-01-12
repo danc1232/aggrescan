@@ -108,7 +108,7 @@ ___
 ## Usage
 
 
-    python aggrescan.py [-d] [-h] [-q] target
+    python aggrescan.py [-d] [-h] [-k] [-q] target
 
 | argument | description |
 |--|--|

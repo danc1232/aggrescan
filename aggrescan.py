@@ -870,9 +870,9 @@ def parse_args():
     desc = f'{c.BLUE}{ascii}\n{c.RES}by {c.GREEN}Daniel Casey{c.RES}\nVersion {c.CYAN}0.8.0{c.RES}\n{c.GRAY}Scan URLS / IPs for malicious indicators{c.RES}\n'
     parser = argparse.ArgumentParser(description=desc,allow_abbrev=False,formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('target', type=str, help="The URL/IP to scan")
-    parser.add_argument('-v', '--verbose', action="store_true", help="display verbose output")
-    parser.add_argument('-q', '--quiet', action="store_true", help="remove color formatting from output")
+    parser.add_argument('-d', '--debug', action="store_true", help="display additional info, useful for debugging")
     parser.add_argument('-k', '--keys', action="store_true", help="check status of API keys")
+    parser.add_argument('-q', '--quiet', action="store_true", help="remove color formatting from output")
     args = parser.parse_args()
     return args
 

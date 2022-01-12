@@ -1,23 +1,22 @@
+<br>
 
-# aggrescan.py
+# Aggrescan.py
 
-##  API Aggregation script to scan URLs / IPs / email addresses for malicious indicators
-
+**API Aggregation script to scan URLs / IPs for malicious indicators**
 Created by Daniel Casey
 
----
-### Current Version: *v0.7.0*
+### Current Version: *v0.8.0*
 
 ### Major Changes:
-- Can now run limited scans with no API keys configured!
-- Web-scraping functionality added to expand into non-API resources, with one resource already configured: <br> [Google Safe Browsing Site Report.](https://transparencyreport.google.com/safe-browsing/search)
+- All scans now run asynchronously!
+- Refactored code to promote clarity and extensibility
 - General bug-fixes, expanded error-handling, and output optimizations.
 
 ### Core Features
- - Loads any combination of configured API keys from *.apis* file in working directory
- - Scans URLs or IPs using 9 different APIs / resources (so far)
- - Detects type of scan (URL / IP*) automatically
- - Generates summary of completed scans in report format
+ - 3 default scans (Google Safe Browsing Site Report, Threatminer URL & IP) - *no API key needed*
+ - 6 additional scans enabled via configuration of API keys in *.apis* file
+ - Asynchronously scans URLs or IPs* (scan type detected automatically)
+ - Generates summary of completed scans in clean report format (colorless option available)
 <br>**email address scans to be added in future release*
 
 ### Integrated APIs
@@ -26,7 +25,7 @@ Created by Daniel Casey
 | [AbuseIPDB.com](https://docs.abuseipdb.com/#introduction) | IP | 1000 scans/day
 |[Fraudguard.io](https://docs.fraudguard.io/)|IP| 1000 scans/month | API key is split into "username" and "password" components (*see step 4 of Installation section*)
 |[Google Safe Browsing](https://developers.google.com/safe-browsing/v4/lookup-api)| URL | ? |
-|[Polyswarm.network](https://docs.polyswarm.io/consumers) | URL / IP | 250 scans/day |
+|[Polyswarm.network](https://docs.polyswarm.io/consumers) | URL / IP | 250 scans/day | Integration removed temporarily, will be added again in future release
 |[Promptapi.com](https://promptapi.com/marketplace/description/whois-api#documentation-tab) (Whois)| URL | 100 scans/day |
 |[Threatminer.org](https://www.threatminer.org/api.php)|URL / IP|10 scans/min | No registration / key required
 |[Urlscan.io](https://urlscan.io/docs/api/)|URL / Email Address| 100 unlisted scans/hr, 1000/day|

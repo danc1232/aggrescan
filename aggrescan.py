@@ -215,7 +215,7 @@ def tm_ip_parse(ip, scan):
         if r['cc'] in cc.codes:
             print(f"[{c.CYAN}#{c.RES}]\tCountry:\t{c.CYAN}{cc.codes[r['cc']]}{c.RES}")
         else:
-            print(f"[{c.CYAN}#{c.RES}]\tCountry:\t{c.CYAN}{r['cc']}{c.RES}")
+            print(f"[{c.CYAN}#{c.RES}]\tCountry:\t\t{c.CYAN}{r['cc']}{c.RES}")
     if 'org_name' in r: print(f"[{c.CYAN}#{c.RES}]\tOrganization:\t\t{c.CYAN}{r['org_name']}{c.RES}")
     if 'register' in r: print(f"[{c.CYAN}#{c.RES}]\tRegistrar:\t\t{c.CYAN}{r['register']}{c.RES}")
 

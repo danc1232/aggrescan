@@ -3,10 +3,9 @@
 
 # Aggrescan.py
 
-**API Aggregation script to scan URLs / IPs for malicious indicators**
-Created by Daniel Casey
+### API Aggregation script to scan URLs / IPs for malicious indicators - by Daniel Casey
 
-### Current Version: *v0.8.0*
+## Current Version: *v0.8.0*
 
 ### Major Changes:
 - All scans now run **asynchronously**!
@@ -109,7 +108,7 @@ ___
 ## Usage
 
 
-    python aggrescan.py [-d] [-h] [-q] target
+    python aggrescan.py [-d] [-h] [-k] [-q] target
 
 | argument | description |
 |--|--|

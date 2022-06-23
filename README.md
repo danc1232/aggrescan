@@ -5,7 +5,7 @@
 
 ### API Aggregation script to scan URLs / IPs for malicious indicators - by Daniel Casey
 
-## Current Version: *v0.8.0*
+## Current Version: *v0.8.1*
 
 ### Major Changes:
 - All scans now run **asynchronously**!
@@ -43,7 +43,7 @@
 ___
 
 ## Installation (for Windows)
-*Note: aggrescan has only been tested (so far) in Windows environments. While it should be functional in Linux or MacOS, installation instructions will differ, and will be added in a subsequent release.*
+*Note: aggrescan has only been tested (so far) in Windows and Linux environments. While it should be functional in MacOS, installation instructions will differ, and will be added in a subsequent release.*
 
 ### Step 1: Download and extract latest source code.
 Find the latest release from the main page or the Releases page, then download as a .zip archive. Extract the archive to your desired location.
